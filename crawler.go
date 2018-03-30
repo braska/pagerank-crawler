@@ -76,6 +76,11 @@ func (c *Crawler) Run(entryUrl string, outputf *os.File) {
 			c.addToMatrix(q.refererUrl, prevVisit.requestUrl);
 			continue
 		}
+
+		if c.options.MaxVisits > 0 && len(c.VisitedUrls) >= c.options.MaxVisits {
+			continue
+		}
+
 		v, err := c.visitUrl(q.rawUrl)
 
 		if err != nil {
@@ -167,13 +172,13 @@ func (c *Crawler) visitUrl(urlString string) (visit, error) {
 	}
 
 	if err != nil {
-		return v, errors.New("ERROR: Failed to crawl \"" + urlString + "\"");
+		return v, errors.New("ERROR: Failed to crawl \"" + urlString + "\"")
 	}
 
 	res, err = http.Get(urlString)
 
 	if err != nil {
-		return v, errors.New("ERROR: Failed to crawl \"" + urlString + "\"");
+		return v, errors.New("ERROR: Failed to crawl \"" + urlString + "\"")
 	}
 	defer res.Body.Close()
 

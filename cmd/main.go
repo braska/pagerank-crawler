@@ -17,12 +17,14 @@ func main() {
 	flag.Usage = usage
 	inputPtr := flag.String("input", "", "path to saved matrix")
 	outputPtr := flag.String("output", "", "path to save matrix")
+	maxVisitsPtr := flag.Int("max", 0, "maximum number of visits")
 	flag.Parse()
 
 	args := flag.Args()
 
 	opts := crawler.NewOptions()
 	opts.SameHostOnly = true
+	opts.MaxVisits = *maxVisitsPtr
 	c := crawler.NewCrawler(opts)
 
 	if len(args) < 1 && *inputPtr == "" {
