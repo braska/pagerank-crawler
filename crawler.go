@@ -10,6 +10,8 @@ import (
 	"mime"
 	"math"
 	"strconv"
+	"os"
+	"encoding/gob"
 )
 
 type visit struct {
@@ -25,11 +27,11 @@ type job struct {
 }
 
 type Crawler struct {
-	Options *Options
-	visitedUrls []string
-	linksOnPages []int
+	options      *Options
+	VisitedUrls  []string
+	LinksOnPages []int
 
-	matrix map[string]map[string]int
+	Matrix map[string]map[string]int
 	visits map[string]visit
 
 	queue []job
@@ -37,25 +39,25 @@ type Crawler struct {
 
 func NewCrawler(opts *Options) *Crawler {
 	ret := new(Crawler)
-	ret.Options = opts
+	ret.options = opts
 
 	ret.visits = make(map[string]visit)
-	ret.matrix = make(map[string]map[string]int)
-	ret.visitedUrls = []string{}
-	ret.linksOnPages = []int{}
+	ret.Matrix = make(map[string]map[string]int)
+	ret.VisitedUrls = []string{}
+	ret.LinksOnPages = []int{}
 
 	return ret
 }
 
 func (c *Crawler) addToMatrix(refererUrl string, requestUrl string) {
-	if c.matrix[refererUrl] == nil {
-		c.matrix[refererUrl] = make(map[string]int)
+	if c.Matrix[refererUrl] == nil {
+		c.Matrix[refererUrl] = make(map[string]int)
 	}
-	c.matrix[refererUrl][requestUrl] += 1
-	c.linksOnPages[c.visits[refererUrl].indexInArray] += 1
+	c.Matrix[refererUrl][requestUrl] += 1
+	c.LinksOnPages[c.visits[refererUrl].indexInArray] += 1
 }
 
-func (c *Crawler) Run(entryUrl string) {
+func (c *Crawler) Run(entryUrl string, outputf *os.File) {
 	v, err := c.visitUrl(entryUrl)
 
 	if err != nil {
@@ -82,11 +84,11 @@ func (c *Crawler) Run(entryUrl string) {
 		}
 
 		if prevVisit, ok := c.visits[v.requestUrl]; !ok {
-			v.indexInArray = len(c.visitedUrls)
+			v.indexInArray = len(c.VisitedUrls)
 			c.visits[v.rawUrl] = v
 			c.visits[v.requestUrl] = v
-			c.visitedUrls = append(c.visitedUrls, v.requestUrl)
-			c.linksOnPages = append(c.linksOnPages, 0)
+			c.VisitedUrls = append(c.VisitedUrls, v.requestUrl)
+			c.LinksOnPages = append(c.LinksOnPages, 0)
 			fmt.Println("New link:", v.requestUrl)
 		} else {
 			c.visits[v.rawUrl] = prevVisit
@@ -99,15 +101,23 @@ func (c *Crawler) Run(entryUrl string) {
 		}
 	}
 
-	p := c.evaluatePagerank()
+	if outputf != nil {
+		enc := gob.NewEncoder(outputf)
+		err := enc.Encode(&c)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		p := c.evaluatePagerank()
 
-	sum := 0.0
-	for i, pagerank := range p {
-		sum += pagerank
-		fmt.Println(c.visitedUrls[i], pagerank)
+		sum := 0.0
+		for i, pagerank := range p {
+			sum += pagerank
+			fmt.Println(c.VisitedUrls[i], pagerank)
+		}
+
+		fmt.Println(sum)
 	}
-
-	fmt.Println(sum)
 }
 
 func getHref(t html.Token) (ok bool, href string) {
@@ -219,7 +229,7 @@ func (c *Crawler) visitUrl(urlString string) (visit, error) {
 
 			aUrl = au.String()
 
-			if (au.Scheme != "http" && au.Scheme != "https") || (c.Options.SameHostOnly && !c.isSameHost(res.Request.URL, aUrl)) {
+			if (au.Scheme != "http" && au.Scheme != "https") || (c.options.SameHostOnly && !c.isSameHost(res.Request.URL, aUrl)) {
 				continue
 			}
 
@@ -235,7 +245,7 @@ func (c *Crawler) pagerankIterate(p []float64) []float64 {
 	for j := 0; j < size; j++ {
 		new_p[j] = 0
 		for i := 0; i < size; i++ {
-			probabilityOfClickingOnLink := float64(c.matrix[c.visitedUrls[i]][c.visitedUrls[j]]) / float64(c.linksOnPages[i])
+			probabilityOfClickingOnLink := float64(c.Matrix[c.VisitedUrls[i]][c.VisitedUrls[j]]) / float64(c.LinksOnPages[i])
 			new_p[j] += probabilityOfClickingOnLink * p[i]
 		}
 	}
@@ -265,7 +275,7 @@ func calculateChange(p, new_p []float64) float64 {
 }
 
 func (c *Crawler) evaluatePagerank() []float64 {
-	size := len(c.visitedUrls)
+	size := len(c.VisitedUrls)
 	inverseOfSize := 1.0 / float64(size)
 
 	p := make([]float64, size)
@@ -282,4 +292,22 @@ func (c *Crawler) evaluatePagerank() []float64 {
 	}
 
 	return p
+}
+
+func (c *Crawler) ParseMatrix(file *os.File) {
+	dec := gob.NewDecoder(file)
+	err := dec.Decode(c)
+	if err != nil {
+		panic(err)
+	}
+
+	p := c.evaluatePagerank()
+
+	sum := 0.0
+	for i, pagerank := range p {
+		sum += pagerank
+		fmt.Println(c.VisitedUrls[i], pagerank)
+	}
+
+	fmt.Println(sum)
 }
