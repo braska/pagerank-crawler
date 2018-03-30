@@ -102,11 +102,7 @@ func (c *Crawler) Run(entryUrl string, outputf *os.File) {
 	}
 
 	if outputf != nil {
-		enc := gob.NewEncoder(outputf)
-		err := enc.Encode(&c)
-		if err != nil {
-			panic(err)
-		}
+		c.saveMatrix(outputf)
 	} else {
 		p := c.evaluatePagerank()
 
@@ -310,4 +306,12 @@ func (c *Crawler) ParseMatrix(file *os.File) {
 	}
 
 	fmt.Println(sum)
+}
+
+func (c *Crawler) saveMatrix(file *os.File) {
+	enc := gob.NewEncoder(file)
+	err := enc.Encode(&c)
+	if err != nil {
+		panic(err)
+	}
 }
