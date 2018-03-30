@@ -64,6 +64,13 @@ func (c *Crawler) Run(entryUrl string, outputf *os.File) {
 		return
 	}
 
+	c.visits[v.rawUrl] = v
+	c.visits[v.requestUrl] = v
+	v.indexInArray = len(c.VisitedUrls)
+	c.VisitedUrls = append(c.VisitedUrls, v.requestUrl)
+	c.LinksOnPages = append(c.LinksOnPages, 0)
+	fmt.Println(len(c.VisitedUrls), "—", "New link:", v.requestUrl)
+
 	for _, u := range v.foundUrls {
 		c.queue = append(c.queue, job{v.requestUrl, u})
 	}
@@ -73,7 +80,7 @@ func (c *Crawler) Run(entryUrl string, outputf *os.File) {
 		c.queue = c.queue[1:]
 
 		if prevVisit, ok := c.visits[q.rawUrl]; ok {
-			c.addToMatrix(q.refererUrl, prevVisit.requestUrl);
+			c.addToMatrix(q.refererUrl, prevVisit.requestUrl)
 			continue
 		}
 
@@ -94,16 +101,15 @@ func (c *Crawler) Run(entryUrl string, outputf *os.File) {
 			c.visits[v.requestUrl] = v
 			c.VisitedUrls = append(c.VisitedUrls, v.requestUrl)
 			c.LinksOnPages = append(c.LinksOnPages, 0)
-			fmt.Println("New link:", v.requestUrl)
+			fmt.Println(len(c.VisitedUrls), "—", "New link:", v.requestUrl)
+			for _, u := range v.foundUrls {
+				c.queue = append(c.queue, job{v.requestUrl, u})
+			}
 		} else {
 			c.visits[v.rawUrl] = prevVisit
 		}
 
 		c.addToMatrix(q.refererUrl, v.requestUrl)
-
-		for _, u := range v.foundUrls {
-			c.queue = append(c.queue, job{v.requestUrl, u})
-		}
 	}
 
 	if outputf != nil {
@@ -246,7 +252,10 @@ func (c *Crawler) pagerankIterate(p []float64) []float64 {
 	for j := 0; j < size; j++ {
 		new_p[j] = 0
 		for i := 0; i < size; i++ {
-			probabilityOfClickingOnLink := float64(c.Matrix[c.VisitedUrls[i]][c.VisitedUrls[j]]) / float64(c.LinksOnPages[i])
+			probabilityOfClickingOnLink := 0.0
+			if c.LinksOnPages[i] > 0 {
+				probabilityOfClickingOnLink = float64(c.Matrix[c.VisitedUrls[i]][c.VisitedUrls[j]]) / float64(c.LinksOnPages[i])
+			}
 			new_p[j] += probabilityOfClickingOnLink * p[i]
 		}
 	}
