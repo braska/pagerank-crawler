@@ -18,6 +18,8 @@ func main() {
 	inputPtr := flag.String("input", "", "path to saved matrix")
 	outputPtr := flag.String("output", "", "path to save matrix")
 	maxVisitsPtr := flag.Int("max", 0, "maximum number of visits")
+	probabilityPtr := flag.Float64("probability", 0.85, "probability of transition by the link")
+	tolerancePtr := flag.Float64("tolerance", 0.0001, "tolerance")
 	flag.Parse()
 
 	args := flag.Args()
@@ -25,6 +27,8 @@ func main() {
 	opts := crawler.NewOptions()
 	opts.SameHostOnly = true
 	opts.MaxVisits = *maxVisitsPtr
+	opts.Tolerance = *tolerancePtr
+	opts.FollowingProb = *probabilityPtr
 	c := crawler.NewCrawler(opts)
 
 	if len(args) < 1 && *inputPtr == "" {
