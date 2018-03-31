@@ -54,7 +54,6 @@ func (c *Crawler) addToMatrix(refererUrl string, requestUrl string) {
 		c.Matrix[refererUrl] = make(map[string]int)
 	}
 	c.Matrix[refererUrl][requestUrl] += 1
-	c.LinksOnPages[c.visits[refererUrl].indexInArray] += 1
 }
 
 func (c *Crawler) Run(entryUrl string, outputf *os.File) {
@@ -68,7 +67,7 @@ func (c *Crawler) Run(entryUrl string, outputf *os.File) {
 	c.visits[v.requestUrl] = v
 	v.indexInArray = len(c.VisitedUrls)
 	c.VisitedUrls = append(c.VisitedUrls, v.requestUrl)
-	c.LinksOnPages = append(c.LinksOnPages, 0)
+	c.LinksOnPages = append(c.LinksOnPages, len(v.foundUrls))
 	fmt.Println(len(c.VisitedUrls), "—", "New link:", v.requestUrl)
 
 	for _, u := range v.foundUrls {
@@ -100,7 +99,7 @@ func (c *Crawler) Run(entryUrl string, outputf *os.File) {
 			c.visits[v.rawUrl] = v
 			c.visits[v.requestUrl] = v
 			c.VisitedUrls = append(c.VisitedUrls, v.requestUrl)
-			c.LinksOnPages = append(c.LinksOnPages, 0)
+			c.LinksOnPages = append(c.LinksOnPages, len(v.foundUrls))
 			fmt.Println(len(c.VisitedUrls), "—", "New link:", v.requestUrl)
 			for _, u := range v.foundUrls {
 				c.queue = append(c.queue, job{v.requestUrl, u})
@@ -245,30 +244,37 @@ func (c *Crawler) visitUrl(urlString string) (visit, error) {
 	}
 }
 
-func (c *Crawler) pagerankIterate(p []float64) []float64 {
+func (c *Crawler) pagerankIterate(probabilityOfTransitionToRandomPage float64, p []float64, danglingNodes []int) []float64 {
 	size := len(p)
-	new_p := make([]float64, size)
+	innerProduct := 0.0
 
-	for j := 0; j < size; j++ {
-		new_p[j] = 0
-		for i := 0; i < size; i++ {
-			probabilityOfClickingOnLink := 0.0
-			if c.LinksOnPages[i] > 0 {
-				probabilityOfClickingOnLink = float64(c.Matrix[c.VisitedUrls[i]][c.VisitedUrls[j]]) / float64(c.LinksOnPages[i])
-			}
-			new_p[j] += probabilityOfClickingOnLink * p[i]
-		}
+	for _, danglingNode := range danglingNodes {
+		innerProduct += p[danglingNode]
 	}
 
+	innerProductOverSize := innerProduct / float64(size)
+
 	norm := 0.0
-	for j := 0; j < size; j++ {
-		norm += new_p[j]
+	new_p := make([]float64, size)
+
+	for i := 0; i < size; i++ {
+		sum := 0.0
+
+		for j := 0; j < size; j++ {
+			numberOfLinkFromJToI := c.Matrix[c.VisitedUrls[j]][c.VisitedUrls[i]]
+			if numberOfLinkFromJToI > 0 {
+				sum += p[j] * float64(numberOfLinkFromJToI) / float64(c.LinksOnPages[j])
+			}
+		}
+		new_p[i] = c.options.FollowingProb * (sum + innerProductOverSize) + probabilityOfTransitionToRandomPage
+
+		norm += new_p[i]
 	}
 
 	antinorm := 1.0 / norm
 
 	for j := 0; j < size; j++ {
-		p[j] = new_p[j] * antinorm
+		new_p[j] *= antinorm
 	}
 
 	return new_p
@@ -284,9 +290,23 @@ func calculateChange(p, new_p []float64) float64 {
 	return acc
 }
 
+func (c *Crawler) calculateDanglingNodes() []int {
+	danglingNodes := make([]int, 0, len(c.LinksOnPages))
+
+	for i, numberOutLinksForI := range c.LinksOnPages {
+		if numberOutLinksForI == 0 {
+			danglingNodes = append(danglingNodes, i)
+		}
+	}
+
+	return danglingNodes
+}
+
 func (c *Crawler) evaluatePagerank() []float64 {
 	size := len(c.VisitedUrls)
 	inverseOfSize := 1.0 / float64(size)
+	probabilityOfTransitionToRandomPage := (1.0 - c.options.FollowingProb) / float64(size)
+	danglingNodes := c.calculateDanglingNodes()
 
 	p := make([]float64, size)
 	for i := range p {
@@ -295,8 +315,8 @@ func (c *Crawler) evaluatePagerank() []float64 {
 
 	change := 2.0
 
-	for change > 0.0001 {
-		new_p := c.pagerankIterate(p)
+	for change > c.options.Tolerance {
+		new_p := c.pagerankIterate(probabilityOfTransitionToRandomPage, p, danglingNodes)
 		change = calculateChange(p, new_p)
 		p = new_p
 	}

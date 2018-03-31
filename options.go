@@ -3,6 +3,8 @@ package crawler
 type Options struct {
 	SameHostOnly bool
 	MaxVisits int
+	FollowingProb float64
+	Tolerance float64
 }
 
 func NewOptions() *Options {
@@ -10,5 +12,7 @@ func NewOptions() *Options {
 	return &Options{
 		true,
 		0,
+		0.85,
+		0.0001,
 	}
 }
