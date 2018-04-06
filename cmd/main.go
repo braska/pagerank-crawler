@@ -20,6 +20,7 @@ func main() {
 	maxVisitsPtr := flag.Int("max", 0, "maximum number of visits")
 	probabilityPtr := flag.Float64("probability", 0.85, "probability of transition by the link")
 	tolerancePtr := flag.Float64("tolerance", 0.0001, "tolerance")
+	parallelPtr := flag.Bool("parallel", false, "parallel")
 	flag.Parse()
 
 	args := flag.Args()
@@ -29,6 +30,7 @@ func main() {
 	opts.MaxVisits = *maxVisitsPtr
 	opts.Tolerance = *tolerancePtr
 	opts.FollowingProb = *probabilityPtr
+	opts.Parallel = *parallelPtr
 	c := crawler.NewCrawler(opts)
 
 	if len(args) < 1 && *inputPtr == "" {
@@ -49,8 +51,6 @@ func main() {
 		}
 		defer outputf.Close()
 	}
-
-
 
 	if len(args) >= 1 {
 		c.Run(flag.Arg(0), outputf)

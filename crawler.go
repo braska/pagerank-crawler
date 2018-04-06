@@ -280,6 +280,27 @@ func (c *Crawler) pagerankIterate(probabilityOfTransitionToRandomPage float64, p
 	return new_p
 }
 
+func (c *Crawler) pagerankIterateParallel(channel chan struct {
+	int
+	float64
+}, i int, p []float64, danglingNodes []int) {
+	size := len(p)
+
+	result := 0.0
+
+	for j := 0; j < size; j++ {
+		numberOfLinkFromJToI := c.Matrix[c.VisitedUrls[j]][c.VisitedUrls[i]]
+		if numberOfLinkFromJToI > 0 {
+			result += p[j] * float64(numberOfLinkFromJToI) / float64(c.LinksOnPages[j])
+		}
+	}
+
+	channel <- struct {
+		int
+		float64
+	}{i, result}
+}
+
 func calculateChange(p, new_p []float64) float64 {
 	acc := 0.0
 
@@ -315,10 +336,45 @@ func (c *Crawler) evaluatePagerank() []float64 {
 
 	change := 2.0
 
-	for change > c.options.Tolerance {
-		new_p := c.pagerankIterate(probabilityOfTransitionToRandomPage, p, danglingNodes)
-		change = calculateChange(p, new_p)
-		p = new_p
+	if c.options.Parallel {
+		channel := make(chan struct {
+			int
+			float64
+		})
+		for change > c.options.Tolerance {
+			for i := 0; i < size; i++ {
+				go c.pagerankIterateParallel(channel, i, p, danglingNodes)
+			}
+
+			innerProduct := 0.0
+
+			for _, danglingNode := range danglingNodes {
+				innerProduct += p[danglingNode]
+			}
+
+			innerProductOverSize := innerProduct / float64(size)
+
+			new_p := make([]float64, size)
+			norm := 0.0
+			for i := 0; i < size; i++ {
+				pair := <-channel
+				new_p[pair.int] = c.options.FollowingProb*(pair.float64+innerProductOverSize) + probabilityOfTransitionToRandomPage
+				norm += pair.float64
+			}
+			antinorm := 1.0 / norm
+
+			for j := 0; j < size; j++ {
+				new_p[j] *= antinorm
+			}
+			change = calculateChange(p, new_p)
+			p = new_p
+		}
+	} else {
+		for change > c.options.Tolerance {
+			new_p := c.pagerankIterate(probabilityOfTransitionToRandomPage, p, danglingNodes)
+			change = calculateChange(p, new_p)
+			p = new_p
+		}
 	}
 
 	return p

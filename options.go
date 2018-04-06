@@ -5,6 +5,7 @@ type Options struct {
 	MaxVisits int
 	FollowingProb float64
 	Tolerance float64
+	Parallel bool
 }
 
 func NewOptions() *Options {
@@ -14,5 +15,6 @@ func NewOptions() *Options {
 		0,
 		0.85,
 		0.0001,
+		false,
 	}
 }
