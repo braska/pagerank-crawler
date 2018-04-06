@@ -1,29 +1,29 @@
 package crawler
 
 import (
-	"net/http"
+	"encoding/gob"
+	"errors"
 	"fmt"
 	"golang.org/x/net/html"
-	"net/url"
-	"strings"
-	"errors"
-	"mime"
 	"math"
-	"strconv"
+	"mime"
+	"net/http"
+	"net/url"
 	"os"
-	"encoding/gob"
+	"strconv"
+	"strings"
 )
 
 type visit struct {
-	rawUrl string
-	requestUrl string
-	foundUrls []string
+	rawUrl       string
+	requestUrl   string
+	foundUrls    []string
 	indexInArray int
 }
 
 type job struct {
 	refererUrl string
-	rawUrl string
+	rawUrl     string
 }
 
 type Crawler struct {
@@ -167,8 +167,8 @@ func (c *Crawler) visitUrl(urlString string) (visit, error) {
 
 	v := visit{
 		requestUrl: res.Request.URL.String(),
-		rawUrl: urlString,
-		foundUrls: []string{},
+		rawUrl:     urlString,
+		foundUrls:  []string{},
 	}
 
 	if !isHtml(res) {
@@ -218,7 +218,6 @@ func (c *Crawler) visitUrl(urlString string) (visit, error) {
 				continue
 			}
 
-
 			if au.Scheme == "" {
 				au.Scheme = res.Request.URL.Scheme
 			}
@@ -266,7 +265,7 @@ func (c *Crawler) pagerankIterate(probabilityOfTransitionToRandomPage float64, p
 				sum += p[j] * float64(numberOfLinkFromJToI) / float64(c.LinksOnPages[j])
 			}
 		}
-		new_p[i] = c.options.FollowingProb * (sum + innerProductOverSize) + probabilityOfTransitionToRandomPage
+		new_p[i] = c.options.FollowingProb*(sum+innerProductOverSize) + probabilityOfTransitionToRandomPage
 
 		norm += new_p[i]
 	}
