@@ -282,7 +282,7 @@ func (c *Crawler) pagerankIterate(probabilityOfTransitionToRandomPage float64, p
 func (c *Crawler) pagerankIterateParallel(channel chan struct {
 	int
 	float64
-}, i int, p []float64, danglingNodes []int) {
+}, i int, p []float64) {
 	size := len(p)
 
 	result := 0.0
@@ -342,7 +342,7 @@ func (c *Crawler) evaluatePagerank() []float64 {
 		})
 		for change > c.options.Tolerance {
 			for i := 0; i < size; i++ {
-				go c.pagerankIterateParallel(channel, i, p, danglingNodes)
+				go c.pagerankIterateParallel(channel, i, p)
 			}
 
 			innerProduct := 0.0
