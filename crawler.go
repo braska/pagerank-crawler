@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"bufio"
 )
 
 type visit struct {
@@ -112,8 +113,10 @@ func (c *Crawler) Run(entryUrl string, outputf *os.File) {
 	}
 
 	if outputf != nil {
+		fmt.Println("Saving to a file...")
 		c.saveMatrix(outputf)
 	} else {
+		fmt.Println("Calculating PageRank...")
 		p := c.evaluatePagerank()
 
 		sum := 0.0
@@ -380,11 +383,37 @@ func (c *Crawler) evaluatePagerank() []float64 {
 }
 
 func (c *Crawler) ParseMatrix(file *os.File) {
-	dec := gob.NewDecoder(file)
-	err := dec.Decode(c)
-	if err != nil {
-		panic(err)
+	fmt.Println("Parsing file...")
+	if c.options.FileType == "bin" {
+		dec := gob.NewDecoder(file)
+		err := dec.Decode(c)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		scanner := bufio.NewScanner(file)
+		scanner.Scan()
+		size, err := strconv.Atoi(scanner.Text())
+		if err != nil {
+			panic(err)
+		}
+		c.VisitedUrls = make([]string, size)
+		c.Matrix = make(map[string]map[string]int)
+		c.LinksOnPages = make([]int, size)
+		for scanner.Scan() {
+			fields := strings.Fields(scanner.Text())
+			from, fromErr := strconv.Atoi(fields[0])
+			to, toErr := strconv.Atoi(fields[1])
+			if fromErr != nil || toErr != nil {
+				panic(err)
+			}
+			c.VisitedUrls[from] = fields[0]
+			c.VisitedUrls[to] = fields[1]
+			c.LinksOnPages[from] += 1
+			c.addToMatrix(fields[0], fields[1])
+		}
 	}
+	fmt.Println("Calculating PageRank...")
 
 	p := c.evaluatePagerank()
 

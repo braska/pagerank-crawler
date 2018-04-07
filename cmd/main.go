@@ -21,6 +21,7 @@ func main() {
 	probabilityPtr := flag.Float64("probability", 0.85, "probability of transition by the link")
 	tolerancePtr := flag.Float64("tolerance", 0.0001, "tolerance")
 	parallelPtr := flag.Bool("parallel", false, "parallel")
+	fileTypePtr := flag.String("filetype", "bin", "type of file (bin or graph)")
 	flag.Parse()
 
 	args := flag.Args()
@@ -31,6 +32,7 @@ func main() {
 	opts.Tolerance = *tolerancePtr
 	opts.FollowingProb = *probabilityPtr
 	opts.Parallel = *parallelPtr
+	opts.FileType = *fileTypePtr
 	c := crawler.NewCrawler(opts)
 
 	if len(args) < 1 && *inputPtr == "" {

@@ -6,6 +6,7 @@ type Options struct {
 	FollowingProb float64
 	Tolerance     float64
 	Parallel      bool
+	FileType     string
 }
 
 func NewOptions() *Options {
@@ -16,5 +17,6 @@ func NewOptions() *Options {
 		0.85,
 		0.0001,
 		false,
+		"bin",
 	}
 }
