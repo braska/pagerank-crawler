@@ -427,9 +427,21 @@ func (c *Crawler) ParseMatrix(file *os.File) {
 }
 
 func (c *Crawler) saveMatrix(file *os.File) {
-	enc := gob.NewEncoder(file)
-	err := enc.Encode(&c)
-	if err != nil {
-		panic(err)
+	if c.options.FileType == "bin" {
+		enc := gob.NewEncoder(file)
+		err := enc.Encode(&c)
+		if err != nil {
+			panic(err)
+		}
+	} else {
+		size := len(c.VisitedUrls)
+		file.WriteString(strconv.Itoa(size) + "\n")
+		for fromIndex, fromUrl := range c.VisitedUrls {
+			for toIndex := 0; toIndex < size; toIndex++ {
+				for i := 0; i < c.Matrix[fromUrl][c.VisitedUrls[toIndex]]; i++  {
+					file.WriteString(strconv.Itoa(fromIndex) + "\t" + strconv.Itoa(toIndex) + "\n")
+				}
+			}
+		}
 	}
 }
